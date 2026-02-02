@@ -1,67 +1,84 @@
-## 🛠️ 1. Technical Stack (Rust Ecosystem)
+# 🚀 Witals-Image: Hybrid Edge/Native Image Optimizer
 
-Việc chọn thư viện trong Rust rất quan trọng vì nó ảnh hưởng trực tiếp đến tốc độ biên dịch và tài nguyên RAM.
-
-* **Core Library:** `image` crate (Phổ biến, hỗ trợ nhiều định dạng).
-* **High Performance:** `photon-rs` (Dùng cho các bộ lọc và hiệu ứng cực nhanh, có hỗ trợ WebAssembly).
-* **Turbo Encoders:** `zune-jpeg` (Encoder/Decoder JPEG nhanh nhất hiện nay cho Rust).
-* **Concurrency:** `Rayon` (Để xử lý ảnh song song trên nhiều nhân CPU - cực kỳ cần thiết cho Cloud Browser).
+**Witals-Image** is the specialized image processing engine for the **WitalsPanel** ecosystem. Engineered for absolute **Core Web Vitals (CWV)** dominance, it leverages Rust to provide a "Write Once, Run Anywhere" solution. It features a unique **Hybrid Mode**: running natively on Ubuntu/VPS for bulk tasks or at the Edge via Cloudflare Workers (WASM) for global delivery.
 
 ---
 
-## 📊 2. Image Processing Pipeline Specs
+## 🌟 Key Features
 
-Hệ thống nên tuân thủ quy trình sau để đảm bảo hiệu suất:
+* **⚡ High-Performance Core:** Written in pure Rust, utilizing high-quality Lanczos3 resampling and turbo-charged encoders (`zune-jpeg`, `photon-rs`).
+* **🔄 Hybrid Deployment:**
+* **Native Mode:** Optimized for VPS environments (Ubuntu + OpenLiteSpeed). Perfect for background processing or origin-shielding.
+* **Edge Mode (WASM):** Compiles to WebAssembly for Cloudflare Workers. Processes images at the nearest edge node to the user, slashing TTFB.
 
-| Tính năng | Đặc tả kỹ thuật (Specs) | Mục đích |
-| --- | --- | --- |
-| **Định dạng đầu vào** | JPG, PNG, WEBP, AVIF, HEIC, GIF. | Đa dạng nguồn dữ liệu. |
-| **Định dạng đầu ra** | **Ưu tiên WebP & AVIF.** | Giảm ~30-50% dung lượng so với JPG/PNG. |
-| **Resizing Logic** | Lanczos3 hoặc Catmull-Rom (High Quality). | Đảm bảo ảnh không bị mờ khi thu nhỏ. |
-| **Metadata** | **Strip All** (Loại bỏ EXIF, GPS, Profile). | Giảm thêm vài KB cho mỗi ảnh. |
-| **Màu sắc** | Chuyển đổi về sRGB (8-bit). | Đảm bảo hiển thị đồng nhất trên mọi trình duyệt. |
 
----
-
-## ⚡ 3. Performance & Resource Constraints
-
-Vì bạn đang dùng VPS để chạy Panel, xử lý ảnh không được phép "ăn" hết tài nguyên hệ thống.
-
-* **Memory Limit:** Giới hạn tối đa **200MB RAM** cho mỗi task xử lý ảnh (sử dụng `Bounded Channel` trong Rust).
-* **Time-to-Process:** Mục tiêu `< 100ms` cho một tấm ảnh 2K xuống Full HD.
-* **Parallelism:** Giới hạn số lượng Thread xử lý ảnh bằng **Rayon ThreadPool** (thường bằng `số nhân CPU - 1`).
-* **Caching Strategy:** Lưu trữ ảnh đã xử lý vào **LRU Cache** (Local SSD) hoặc chuyển tiếp qua **Smart Cache** của WitalsPanel.
+* **💎 CWV Optimized:** Automatic conversion to **WebP/AVIF**, aggressive EXIF metadata stripping, and integrated support for **BlurHash/LQIP** generation.
+* **📦 Efficient Footprint:** Uses **PNPM** for the management dashboard to ensure zero-redundancy in `node_modules` and minimal disk usage on your server.
 
 ---
 
-## 🎨 4. Smart Transformation Features (Dành cho UI/UX)
+## 🏗️ Project Structure (Rust Workspace)
 
-Để hỗ trợ tốt cho ngách "Cloud Browser" hoặc "Panel":
-
-1. **Lazy Loading Support:** Tự động tạo ảnh **BlurHash** hoặc **LQIP** (Low-Quality Image Placeholder) - một chuỗi base64 siêu nhỏ để hiển thị ngay lập tức khi ảnh gốc chưa tải xong.
-2. **Adaptive Streaming:** Tự động phát hiện màn hình người dùng để trả về kích thước ảnh phù hợp (Responsive Images).
-3. **Watermarking:** Chèn watermark dạng vector (SVG) để tiết kiệm tài nguyên hơn so với chèn dạng bitmap.
-
----
-
-## 🚀 5. Ví dụ cấu trúc Module trong Rust
-
-Bạn có thể tạo một module `image_processor` trong project của mình như sau:
-
-```rust
-use photon_rs::native::open_image;
-use photon_rs::transform::resize;
-use photon_rs::SamplingFilter;
-
-pub fn optimize_for_web(input_path: &str, output_path: &str, width: u32, height: u32) {
-    // 1. Load image
-    let mut img = open_image(input_path).expect("Failed to open image");
-
-    // 2. Resize với filter chất lượng cao
-    img = resize(&img, width, height, SamplingFilter::Lanczos3);
-
-    // 3. Save as WebP (Cần thêm crate hỗ trợ WebP)
-    // photon_rs::native::save_image(img, output_path);
-}
+```text
+.
+├── core-logic/           # Shared Library: Core image manipulation logic
+├── native-app/           # Native Mode: CLI/Service binary for Ubuntu/VPS
+├── wasm-worker/          # Edge Mode: Cloudflare Workers WASM deployment
+└── witals-ui/            # Dashboard: Management UI (Vue 3 + Vite + PNPM)
 
 ```
+
+---
+
+## 🛠️ Development Prerequisites (Ubuntu)
+
+Ensure your Ubuntu environment is ready for Rust system-level compilation:
+
+* **OS:** Ubuntu 22.04+ LTS.
+* **Rust Toolchain:** `rustup` with `wasm32-wasi` and `x86_64-unknown-linux-gnu` targets.
+* **System Dependencies:**
+```bash
+sudo apt update && sudo apt install build-essential pkg-config libssl-dev -y
+
+```
+
+
+* **Node.js Environment:** `fnm` for version management and `pnpm` for package storage.
+
+---
+
+## 🚀 Getting Started
+
+### 1. Local Development (Native)
+
+To process an image locally using the native binary:
+
+```bash
+cargo run -p native-app -- --input sample.jpg --output sample.webp --width 1200
+
+```
+
+### 2. Edge Deployment (WASM)
+
+Deploy the optimizer to 300+ cities globally via Cloudflare:
+
+```bash
+cd wasm-worker
+wrangler deploy
+
+```
+
+---
+
+## 🎯 Roadmap
+
+* [ ] Implement multi-threaded parallel processing using **Rayon**.
+* [ ] Add native **AVIF** encoding support for maximum compression.
+* [ ] Develop a **Smart-Cache Bridge** between RoadRunner and ProxySQL.
+* [ ] Real-time CWV scoring dashboard for processed assets.
+
+---
+
+## ⚖️ License
+
+Copyright © 2026 **Puleeno Nguyen**. All rights reserved. Built for the performance-obsessed web.
