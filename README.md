@@ -21,10 +21,10 @@
 
 ```text
 .
-├── core-logic/           # Shared Library: Core image manipulation logic
+├── core/           # Shared Library: Core image manipulation logic
 ├── native-app/           # Native Mode: CLI/Service binary for Ubuntu/VPS
 ├── wasm-worker/          # Edge Mode: Cloudflare Workers WASM deployment
-└── witals-ui/            # Dashboard: Management UI (Vue 3 + Vite + PNPM)
+└── ui/            # Dashboard: Management UI (Vue 3 + Vite + PNPM)
 
 ```
 
